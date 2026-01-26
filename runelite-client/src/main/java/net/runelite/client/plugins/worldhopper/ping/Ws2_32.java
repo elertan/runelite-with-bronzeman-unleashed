@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Abex
+ * Copyright (c) 2026, Adam <Adam@sigterm.info>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,52 +22,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.config;
+package net.runelite.client.plugins.worldhopper.ping;
 
-import java.util.function.Predicate;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import net.runelite.api.Client;
-import net.runelite.api.WorldType;
+import com.sun.jna.Library;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.WinNT;
+import com.sun.jna.ptr.IntByReference;
 
-@Getter
-@RequiredArgsConstructor
-public enum RuneScapeProfileType
+interface Ws2_32 extends Library
 {
-	// This enum should be ordinal-stable; new entries should only be added to the
-	// end and entries should never be removed
-	STANDARD(client -> true),
-	BETA(client -> client.getWorldType().contains(WorldType.NOSAVE_MODE) || client.getWorldType().contains(WorldType.BETA_WORLD)),
-	QUEST_SPEEDRUNNING(client -> client.getWorldType().contains(WorldType.QUEST_SPEEDRUNNING)),
-	DEADMAN(client -> client.getWorldType().contains(WorldType.DEADMAN)),
-	PVP_ARENA(client -> client.getWorldType().contains(WorldType.PVP_ARENA)),
-	TRAILBLAZER_LEAGUE,
-	DEADMAN_REBORN,
-	SHATTERED_RELICS_LEAGUE,
-	TRAILBLAZER_RELOADED_LEAGUE,
-	RAGING_ECHOES_LEAGUE,
-	GRID_MASTER,
-	;
+	Ws2_32 INSTANCE = Native.loadLibrary("Ws2_32", Ws2_32.class);
 
-	private final Predicate<Client> test;
+	int SIO_TCP_INFO = 0xD800_0027;
 
-	RuneScapeProfileType()
-	{
-		this(client -> false);
-	}
-
-	public static RuneScapeProfileType getCurrent(Client client)
-	{
-		RuneScapeProfileType[] types = values();
-		for (int i = types.length - 1; i >= 0; i--)
-		{
-			RuneScapeProfileType type = types[i];
-			if (types[i].test.test(client))
-			{
-				return type;
-			}
-		}
-
-		return STANDARD;
-	}
+	int WSAIoctl(WinNT.HANDLE socket, int dwIoControlCode, Pointer lpvInBuffer, int cbInBuffer, Pointer lpvOutBuffer, int cbOutBuffer, IntByReference lpcbBytesReturned, Pointer lpOverlapped, Pointer lpCompletionRoutine);
 }

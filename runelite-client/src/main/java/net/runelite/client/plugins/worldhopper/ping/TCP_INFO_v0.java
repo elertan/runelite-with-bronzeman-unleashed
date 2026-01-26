@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Abex
+ * Copyright (c) 2026, Adam <Adam@sigterm.info>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,52 +22,57 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.config;
+package net.runelite.client.plugins.worldhopper.ping;
 
-import java.util.function.Predicate;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import net.runelite.api.Client;
-import net.runelite.api.WorldType;
+import com.sun.jna.Structure;
+import com.sun.jna.platform.win32.WinDef;
+import java.util.List;
 
-@Getter
-@RequiredArgsConstructor
-public enum RuneScapeProfileType
+public class TCP_INFO_v0 extends Structure
 {
-	// This enum should be ordinal-stable; new entries should only be added to the
-	// end and entries should never be removed
-	STANDARD(client -> true),
-	BETA(client -> client.getWorldType().contains(WorldType.NOSAVE_MODE) || client.getWorldType().contains(WorldType.BETA_WORLD)),
-	QUEST_SPEEDRUNNING(client -> client.getWorldType().contains(WorldType.QUEST_SPEEDRUNNING)),
-	DEADMAN(client -> client.getWorldType().contains(WorldType.DEADMAN)),
-	PVP_ARENA(client -> client.getWorldType().contains(WorldType.PVP_ARENA)),
-	TRAILBLAZER_LEAGUE,
-	DEADMAN_REBORN,
-	SHATTERED_RELICS_LEAGUE,
-	TRAILBLAZER_RELOADED_LEAGUE,
-	RAGING_ECHOES_LEAGUE,
-	GRID_MASTER,
-	;
+	public WinDef.ULONG State;
+	public WinDef.ULONG Mss;
+	public WinDef.ULONGLONG ConnectionTimeMs;
+	public WinDef.BOOL TimestampsEnabled;
+	public WinDef.ULONG RttUs;
+	public WinDef.ULONG MinRttUs;
+	public WinDef.ULONG BytesInFlight;
+	public WinDef.ULONG Cwnd;
+	public WinDef.ULONG SndWnd;
+	public WinDef.ULONG RcvWnd;
+	public WinDef.ULONG RcvBuf;
+	public WinDef.ULONGLONG BytesOut;
+	public WinDef.ULONGLONG BytesIn;
+	public WinDef.ULONG BytesReordered;
+	public WinDef.ULONG BytesRetrans;
+	public WinDef.ULONG FastRetrans;
+	public WinDef.ULONG DupAcksIn;
+	public WinDef.ULONG TimeoutEpisodes;
+	public WinDef.UCHAR SynRetrans;
 
-	private final Predicate<Client> test;
-
-	RuneScapeProfileType()
+	@Override
+	protected List<String> getFieldOrder()
 	{
-		this(client -> false);
-	}
-
-	public static RuneScapeProfileType getCurrent(Client client)
-	{
-		RuneScapeProfileType[] types = values();
-		for (int i = types.length - 1; i >= 0; i--)
-		{
-			RuneScapeProfileType type = types[i];
-			if (types[i].test.test(client))
-			{
-				return type;
-			}
-		}
-
-		return STANDARD;
+		return List.of(
+			"State",
+			"Mss",
+			"ConnectionTimeMs",
+			"TimestampsEnabled",
+			"RttUs",
+			"MinRttUs",
+			"BytesInFlight",
+			"Cwnd",
+			"SndWnd",
+			"RcvWnd",
+			"RcvBuf",
+			"BytesOut",
+			"BytesIn",
+			"BytesReordered",
+			"BytesRetrans",
+			"FastRetrans",
+			"DupAcksIn",
+			"TimeoutEpisodes",
+			"SynRetrans"
+		);
 	}
 }
