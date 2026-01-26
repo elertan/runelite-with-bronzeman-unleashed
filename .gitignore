@@ -37,3 +37,8 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Bronzeman Unleashed ###
+sync-bronzeman/
+runelite-client/src/main/java/net/runelite/client/plugins/bronzemanunleashed/
+runelite-client/src/main/resources/net/runelite/client/plugins/bronzemanunleashed/
