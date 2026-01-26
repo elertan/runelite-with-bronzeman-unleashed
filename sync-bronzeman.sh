@@ -84,7 +84,7 @@ cd "$RUNELITE_DIR"
 ./gradlew :client:shadowJar
 
 # Find the built JAR and extract version
-JAR_PATH=$(find "$RUNELITE_DIR/runelite-client/build/libs" -name "client-*-shaded.jar" | head -1)
+JAR_PATH=$(find "$RUNELITE_DIR/runelite-client/build/libs" -name "client-*-shaded.jar" -print0 | xargs -0 ls -t | head -1)
 if [[ -z "$JAR_PATH" ]]; then
     echo "ERROR: Could not find shaded JAR"
     exit 1
