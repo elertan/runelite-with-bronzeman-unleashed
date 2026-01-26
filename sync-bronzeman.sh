@@ -59,10 +59,11 @@ done
 java_count=$(find "$TARGET_JAVA" -name "*.java" | wc -l | tr -d ' ')
 echo "  Copied $java_count Java files"
 
-# Copy resources (flatten icons directory into plugin resources)
+# Copy resources (preserve directory structure)
 echo "Copying resources..."
 if [[ -d "$SRC_RESOURCES/icons" ]]; then
-    cp "$SRC_RESOURCES/icons"/* "$TARGET_RESOURCES/" 2>/dev/null || true
+    mkdir -p "$TARGET_RESOURCES/icons"
+    cp "$SRC_RESOURCES/icons"/* "$TARGET_RESOURCES/icons/" 2>/dev/null || true
 fi
 
 # Count resource files
