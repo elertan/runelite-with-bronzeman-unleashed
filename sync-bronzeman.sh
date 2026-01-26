@@ -139,3 +139,10 @@ echo ""
 echo "=== Build complete ==="
 echo "Distribution: $VERSION_DIR"
 echo "Zip: $DIST_DIR/$VERSION.zip"
+echo ""
+
+read -p "Open distribution folder? [y/N] " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    open "$VERSION_DIR"
+fi
