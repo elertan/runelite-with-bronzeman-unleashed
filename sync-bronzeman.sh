@@ -49,9 +49,11 @@ find "$SRC_JAVA" -name "*.java" | while read -r src_file; do
     mkdir -p "$(dirname "$target_file")"
 
     # Copy with package/import transformation (including static imports)
+    # Also transform absolute resource paths to relative (remove leading /)
     sed -e "s|package $OLD_PACKAGE|package $NEW_PACKAGE|g" \
         -e "s|import $OLD_PACKAGE|import $NEW_PACKAGE|g" \
         -e "s|import static $OLD_PACKAGE|import static $NEW_PACKAGE|g" \
+        -e 's|"/icons/|"icons/|g' \
         "$src_file" > "$target_file"
 done
 
