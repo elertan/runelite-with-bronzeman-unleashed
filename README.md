@@ -18,6 +18,22 @@ We cannot guarantee security, and we do not recommend playing this way.
 
 This is intended for people who want to try Bronzeman Unleashed before it is ready on the official Plugin Hub.
 Use at your own risk.
+We strongly recommend only using this if you can read and verify source code changes yourself, and not blindly trust unofficial binaries.
+
+## Installation
+
+1. Download the latest release from this repository.
+2. Extract all files to a folder on your computer (for example Desktop or Documents).
+3. Launch:
+- Windows: `start.bat`
+- Linux/macOS: `start.sh`
+
+## Java Requirement
+
+Java is required to run this client.
+
+Install Java from:
+- [Microsoft OpenJDK downloads](https://learn.microsoft.com/en-us/java/openjdk/download)
 
 ## How Releases Work
 
@@ -41,11 +57,21 @@ Rules:
 Example:
 
 ```text
--Dsun.java2d.uiScale=1.35
--Xmx2048m
+-Dsun.java2d.uiScale=1.0
 ```
 
 `jvmargs.txt` is preserved across launcher self-updates.
+
+## UI Scale (Equivalent to RuneLite Configure)
+
+If you want scaling similar to setting Client Arguments in `RuneLite (Configure)`, set this in `jvmargs.txt`:
+
+```text
+-Dsun.java2d.uiScale=1.35
+```
+
+Change `1.35` to whatever scale you prefer.
+Default in this project is `1.0`.
 
 ## Jagex Account Requirement
 
@@ -57,6 +83,10 @@ Then:
 3. Launch official RuneLite once and log in.
 
 This allows the custom launcher to reuse the last launch account credentials.
+
+## NVIDIA Dedicated GPU Note
+
+Some users may need to add `runelite.jar` in NVIDIA Control Panel Program Settings and set it to use the dedicated/high-performance NVIDIA GPU.
 
 ## Credential Risk Warning
 

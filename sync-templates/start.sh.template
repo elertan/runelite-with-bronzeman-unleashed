@@ -15,7 +15,7 @@ if [[ ! -f "$JVMARGS_FILE" ]]; then
 	cp "$SCRIPT_DIR/jvmargs.example.txt" "$JVMARGS_FILE" 2>/dev/null || cat > "$JVMARGS_FILE" <<'JVMARGS'
 # One JVM argument per line.
 # Lines beginning with # are ignored.
--Dsun.java2d.uiScale=1.35
+-Dsun.java2d.uiScale=1.0
 JVMARGS
 	echo "Created $JVMARGS_FILE. Add custom JVM args here to keep them across updates."
 fi

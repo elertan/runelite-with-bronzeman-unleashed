@@ -15,15 +15,15 @@ if exist "%SCRIPT_DIR%\VERSION" set /p LOCAL_VERSION=<"%SCRIPT_DIR%\VERSION"
 
 if not exist "%JVMARGS_FILE%" (
 	copy /y "%SCRIPT_DIR%\jvmargs.example.txt" "%JVMARGS_FILE%" >nul 2>&1
-	if errorlevel 1 (
-		>"%JVMARGS_FILE%" (
-			echo # One JVM argument per line.
-			echo # Lines beginning with # are ignored.
-			echo -Dsun.java2d.uiScale=1.35
+		if errorlevel 1 (
+			>"%JVMARGS_FILE%" (
+				echo # One JVM argument per line.
+				echo # Lines beginning with # are ignored.
+				echo -Dsun.java2d.uiScale=1.0
+			)
 		)
+		echo Created "%JVMARGS_FILE%". Add custom JVM args here to keep them across updates.
 	)
-	echo Created "%JVMARGS_FILE%". Add custom JVM args here to keep them across updates.
-)
 
 if "%SKIP_UPDATE%"=="0" call :check_update
 

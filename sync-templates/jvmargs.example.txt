@@ -2,4 +2,4 @@
 # Lines beginning with # are ignored.
 #
 # Copy this to jvmargs.txt and edit it to keep custom settings across updates.
--Dsun.java2d.uiScale=1.35
+-Dsun.java2d.uiScale=1.0
