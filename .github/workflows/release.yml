@@ -51,11 +51,11 @@ jobs:
             /sync-templates/**
           sparse-checkout-cone-mode: false
 
-      - name: Checkout Bronzeman plugin (dev)
+      - name: Checkout Bronzeman plugin (main)
         uses: actions/checkout@v4
         with:
           repository: elertan/bronzeman-unleashed
-          ref: dev
+          ref: main
           path: bronzeman-unleashed
           fetch-depth: 1
 
