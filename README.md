@@ -3,6 +3,11 @@
 This repository exists to publish unofficial RuneLite builds that include Bronzeman Unleashed before it is ready on the official Plugin Hub.
 It is an automation/release repository, not a maintained mirror of the full RuneLite source tree.
 
+## Advanced Users Only
+
+This is only intended for advanced/technical users who can review source code and understand the security implications of running unofficial binaries.
+If you cannot verify source code yourself, do not use this build.
+
 ## Read This First (Safety)
 
 This build is unofficial.
@@ -10,6 +15,16 @@ We cannot guarantee security, and we do not recommend playing this way.
 
 Use this only if you are comfortable reading and verifying source code changes yourself.
 Do not blindly trust unofficial binaries.
+
+## No Warranty / Liability
+
+This software and distribution process are provided "as is", without warranty of any kind.
+By using this repository or its releases, you accept full responsibility for any outcomes, including account compromise, account bans, data loss, system instability, or other damages.
+The maintainer is not responsible for losses or damages resulting from use of these builds.
+
+## No Affiliation
+
+This project is unofficial and is not affiliated with, endorsed by, or supported by RuneLite maintainers or Jagex.
 
 ## Installation
 
