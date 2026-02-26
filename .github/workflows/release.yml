@@ -1,0 +1,159 @@
+name: Release
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-24.04
+
+    env:
+      GRADLE_OPTS: "-Dfile:encoding=UTF-8"
+      RELEASE_REPO: ${{ github.repository }}
+      TOOLS_DIR: ${{ github.workspace }}/tools
+      RUNELITE_DIR: ${{ github.workspace }}/runelite-src
+      PLUGIN_DIR: ${{ github.workspace }}/bronzeman-unleashed
+      DIST_DIR: ${{ github.workspace }}/sync-bronzeman
+
+    steps:
+      - name: Resolve latest RuneLite tag
+        id: runelite
+        run: |
+          set -euo pipefail
+          TAG="$(
+            git ls-remote --tags --refs https://github.com/runelite/runelite \
+              | awk '{print $2}' \
+              | sed 's#refs/tags/##' \
+              | awk '/^runelite-parent-[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$/' \
+              | sort -V \
+              | tail -n 1
+          )"
+          [[ -n "$TAG" ]] || { echo "Failed to resolve latest RuneLite tag"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#runelite-parent-}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release tooling
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          path: tools
+          sparse-checkout: |
+            /sync-bronzeman.sh
+            /sync-templates/**
+          sparse-checkout-cone-mode: false
+
+      - name: Checkout Bronzeman plugin (dev)
+        uses: actions/checkout@v4
+        with:
+          repository: elertan/bronzeman-unleashed
+          ref: dev
+          path: bronzeman-unleashed
+          fetch-depth: 1
+
+      - name: Compute release candidate
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PLUGIN_SHA="$(git -C "$PLUGIN_DIR" rev-parse --short=7 HEAD)"
+          RELEASE_VERSION="${{ steps.runelite.outputs.version }}-$PLUGIN_SHA"
+          echo "plugin_sha=$PLUGIN_SHA" >> "$GITHUB_OUTPUT"
+          echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "$RELEASE_VERSION" --repo "$RELEASE_REPO" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Release already exists: $RELEASE_VERSION"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Will build release: $RELEASE_VERSION"
+          fi
+
+      - name: Cache glslang
+        if: steps.candidate.outputs.skip != 'true'
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/runelite
+          key: ${{ runner.os }}-cache-${{ steps.runelite.outputs.tag }}
+          restore-keys: |
+            ${{ runner.os }}-cache-
+
+      - name: Checkout RuneLite source at tag
+        if: steps.candidate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: runelite/runelite
+          ref: ${{ steps.runelite.outputs.tag }}
+          path: runelite-src
+          fetch-depth: 1
+
+      - name: Set up JDK 11
+        if: steps.candidate.outputs.skip != 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - name: Setup Gradle
+        if: steps.candidate.outputs.skip != 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
+      - name: Build synced distribution
+        if: steps.candidate.outputs.skip != 'true'
+        run: bash "$TOOLS_DIR/sync-bronzeman.sh"
+
+      - name: Load release metadata
+        if: steps.candidate.outputs.skip != 'true'
+        id: meta
+        run: |
+          set -euo pipefail
+          source "$DIST_DIR/release-info.env"
+          echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "runelite_version=$RUNELITE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "plugin_sha=$PLUGIN_SHA" >> "$GITHUB_OUTPUT"
+          echo "version_zip=$ZIP_PATH" >> "$GITHUB_OUTPUT"
+          echo "update_zip=$UPDATE_ZIP" >> "$GITHUB_OUTPUT"
+          echo "version_txt=$VERSION_TXT" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release id
+        if: steps.candidate.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.meta.outputs.release_version }}" == "${{ steps.candidate.outputs.release_version }}" ]]
+
+      - name: Create or update release
+        if: steps.candidate.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.meta.outputs.release_version }}"
+          BODY="RuneLite ${{ steps.meta.outputs.runelite_version }} with bronzeman-unleashed commit ${{ steps.meta.outputs.plugin_sha }}."
+
+          if gh release view "$TAG" --repo "$RELEASE_REPO" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "$RELEASE_REPO" --title "$TAG" --notes "$BODY"
+          else
+            gh release create "$TAG" --repo "$RELEASE_REPO" --title "$TAG" --notes "$BODY"
+          fi
+
+          gh release upload "$TAG" \
+            "${{ steps.meta.outputs.update_zip }}#runelite-update.zip" \
+            "${{ steps.meta.outputs.version_txt }}#version.txt" \
+            "${{ steps.meta.outputs.version_zip }}#${TAG}.zip" \
+            --repo "$RELEASE_REPO" \
+            --clobber
+
+      - name: No release needed
+        if: steps.candidate.outputs.skip == 'true'
+        run: echo "Latest release already exists, skipping build."

@@ -1,0 +1,143 @@
+#!/bin/bash
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RELEASE_REPO="__RELEASE_REPO__"
+PLUGINHUB_VERSION="__PLUGINHUB_VERSION__"
+LOCAL_VERSION="__LOCAL_VERSION__"
+JVMARGS_FILE="$SCRIPT_DIR/jvmargs.txt"
+
+if [[ -f "$SCRIPT_DIR/VERSION" ]]; then
+	LOCAL_VERSION="$(tr -d '\r\n' < "$SCRIPT_DIR/VERSION")"
+fi
+
+if [[ ! -f "$JVMARGS_FILE" ]]; then
+	cp "$SCRIPT_DIR/jvmargs.example.txt" "$JVMARGS_FILE" 2>/dev/null || cat > "$JVMARGS_FILE" <<'JVMARGS'
+# One JVM argument per line.
+# Lines beginning with # are ignored.
+-Dsun.java2d.uiScale=1.35
+JVMARGS
+	echo "Created $JVMARGS_FILE. Add custom JVM args here to keep them across updates."
+fi
+
+install_update() {
+	local latest_version="$1"
+	local tmp_dir zip_path extract_dir root_dir
+
+	if ! command -v curl >/dev/null 2>&1; then
+		echo "Update install failed: curl not found."
+		return 1
+	fi
+
+	if ! command -v unzip >/dev/null 2>&1; then
+		echo "Update install failed: unzip not found."
+		return 1
+	fi
+
+	tmp_dir="$(mktemp -d 2>/dev/null || mktemp -d -t runelite-update)"
+	zip_path="$tmp_dir/runelite-update.zip"
+	extract_dir="$tmp_dir/extract"
+
+	if ! curl -fL "https://github.com/$RELEASE_REPO/releases/latest/download/runelite-update.zip" -o "$zip_path" >/dev/null 2>&1; then
+		rm -rf "$tmp_dir"
+		echo "Update download failed."
+		return 1
+	fi
+
+	mkdir -p "$extract_dir"
+	if ! unzip -q "$zip_path" -d "$extract_dir" >/dev/null 2>&1; then
+		rm -rf "$tmp_dir"
+		echo "Update extraction failed."
+		return 1
+	fi
+
+	root_dir="$extract_dir"
+	if [[ ! -f "$root_dir/runelite.jar" ]]; then
+		root_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 2 -type f -name runelite.jar -exec dirname {} \; | head -n 1)"
+	fi
+
+	if [[ -z "$root_dir" || ! -f "$root_dir/runelite.jar" || ! -f "$root_dir/start.sh" || ! -f "$root_dir/start.bat" || ! -f "$root_dir/VERSION" ]]; then
+		rm -rf "$tmp_dir"
+		echo "Update package is invalid."
+		return 1
+	fi
+
+	if ! cp "$root_dir/runelite.jar" "$SCRIPT_DIR/runelite.jar"; then
+		rm -rf "$tmp_dir"
+		echo "Failed to install runelite.jar."
+		return 1
+	fi
+
+	if ! cp "$root_dir/start.sh" "$SCRIPT_DIR/start.sh"; then
+		rm -rf "$tmp_dir"
+		echo "Failed to install start.sh."
+		return 1
+	fi
+	chmod +x "$SCRIPT_DIR/start.sh"
+
+	if ! cp "$root_dir/start.bat" "$SCRIPT_DIR/start.bat"; then
+		rm -rf "$tmp_dir"
+		echo "Failed to install start.bat."
+		return 1
+	fi
+
+	if ! cp "$root_dir/VERSION" "$SCRIPT_DIR/VERSION"; then
+		rm -rf "$tmp_dir"
+		echo "Failed to install VERSION."
+		return 1
+	fi
+
+	if [[ -f "$root_dir/jvmargs.example.txt" ]]; then
+		cp "$root_dir/jvmargs.example.txt" "$SCRIPT_DIR/jvmargs.example.txt" || true
+	fi
+
+	rm -rf "$tmp_dir"
+	echo "Installed update: $latest_version"
+	return 0
+}
+
+check_for_update() {
+	local latest_version reply
+
+	if ! command -v curl >/dev/null 2>&1; then
+		echo "Update check failed (curl not found). Launching installed version."
+		return 0
+	fi
+
+	latest_version="$(curl -fsSL "https://github.com/$RELEASE_REPO/releases/latest/download/version.txt" 2>/dev/null | tr -d '\r' | head -n 1 || true)"
+	if [[ -z "$latest_version" ]]; then
+		echo "Update check failed. Launching installed version."
+		return 0
+	fi
+
+	if [[ "$latest_version" == "$LOCAL_VERSION" ]]; then
+		return 0
+	fi
+
+	echo "Update available: $LOCAL_VERSION -> $latest_version"
+	read -r -p "Install update now? [y/N] " reply || true
+	if [[ ! "$reply" =~ ^[Yy]$ ]]; then
+		return 0
+	fi
+
+	if install_update "$latest_version"; then
+		echo "Restarting launcher with updated files..."
+		exec "$SCRIPT_DIR/start.sh" --skip-update-check
+	fi
+
+	echo "Continuing with currently installed version."
+	return 0
+}
+
+if [[ "${1:-}" != "--skip-update-check" ]]; then
+	check_for_update
+fi
+
+JAVA_ARGS=("-Drunelite.pluginhub.version=$PLUGINHUB_VERSION")
+while IFS= read -r arg || [[ -n "$arg" ]]; do
+	[[ -z "$arg" ]] && continue
+	[[ "$arg" =~ ^[[:space:]]*# ]] && continue
+	JAVA_ARGS+=("$arg")
+done < "$JVMARGS_FILE"
+
+exec java "${JAVA_ARGS[@]}" -jar "$SCRIPT_DIR/runelite.jar"

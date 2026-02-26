@@ -1,0 +1,113 @@
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+set "SCRIPT_DIR=%~dp0"
+if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
+
+set "RELEASE_REPO=__RELEASE_REPO__"
+set "PLUGINHUB_VERSION=__PLUGINHUB_VERSION__"
+set "LOCAL_VERSION=__LOCAL_VERSION__"
+set "JVMARGS_FILE=%SCRIPT_DIR%\jvmargs.txt"
+set "SKIP_UPDATE=0"
+
+if /I "%~1"=="--skip-update-check" set "SKIP_UPDATE=1"
+if exist "%SCRIPT_DIR%\VERSION" set /p LOCAL_VERSION=<"%SCRIPT_DIR%\VERSION"
+
+if not exist "%JVMARGS_FILE%" (
+	copy /y "%SCRIPT_DIR%\jvmargs.example.txt" "%JVMARGS_FILE%" >nul 2>&1
+	if errorlevel 1 (
+		>"%JVMARGS_FILE%" (
+			echo # One JVM argument per line.
+			echo # Lines beginning with # are ignored.
+			echo -Dsun.java2d.uiScale=1.35
+		)
+	)
+	echo Created "%JVMARGS_FILE%". Add custom JVM args here to keep them across updates.
+)
+
+if "%SKIP_UPDATE%"=="0" call :check_update
+
+set "JAVA_ARGS=-Drunelite.pluginhub.version=%PLUGINHUB_VERSION%"
+for /f "usebackq delims=" %%A in ("%JVMARGS_FILE%") do (
+	set "line=%%A"
+	if not "!line!"=="" if not "!line:~0,1!"=="#" set "JAVA_ARGS=!JAVA_ARGS! %%A"
+)
+
+java %JAVA_ARGS% -jar "%SCRIPT_DIR%\runelite.jar"
+exit /b %ERRORLEVEL%
+
+:check_update
+where curl >nul 2>&1
+if errorlevel 1 (
+	echo Update check failed ^(curl not found^). Launching installed version.
+	goto :eof
+)
+
+set "LATEST_FILE=%TEMP%\runelite-version-%RANDOM%%RANDOM%.txt"
+curl -fsSL "https://github.com/%RELEASE_REPO%/releases/latest/download/version.txt" -o "%LATEST_FILE%" >nul 2>&1
+if errorlevel 1 (
+	echo Update check failed. Launching installed version.
+	if exist "%LATEST_FILE%" del /q "%LATEST_FILE%" >nul 2>&1
+	goto :eof
+)
+
+set "LATEST_VERSION="
+set /p LATEST_VERSION=<"%LATEST_FILE%"
+del /q "%LATEST_FILE%" >nul 2>&1
+
+if "%LATEST_VERSION%"=="" (
+	echo Update check failed. Launching installed version.
+	goto :eof
+)
+
+if /I "%LATEST_VERSION%"=="%LOCAL_VERSION%" goto :eof
+
+echo Update available: %LOCAL_VERSION% ^> %LATEST_VERSION%
+set /p INSTALL_UPDATE=Install update now? [y/N] 
+if /I not "%INSTALL_UPDATE%"=="y" if /I not "%INSTALL_UPDATE%"=="yes" goto :eof
+
+call :install_update
+if errorlevel 1 (
+	echo Update failed. Launching installed version.
+	goto :eof
+)
+
+echo Update installed. Restarting launcher.
+start "" "%SCRIPT_DIR%\start.bat" --skip-update-check
+exit /b 0
+
+:install_update
+set "TMP_DIR=%TEMP%\runelite-update-%RANDOM%%RANDOM%"
+mkdir "%TMP_DIR%" >nul 2>&1
+if errorlevel 1 exit /b 1
+
+curl -fL "https://github.com/%RELEASE_REPO%/releases/latest/download/runelite-update.zip" -o "%TMP_DIR%\runelite-update.zip" >nul 2>&1
+if errorlevel 1 goto :update_fail
+
+powershell -NoProfile -Command "Expand-Archive -Path '%TMP_DIR%\runelite-update.zip' -DestinationPath '%TMP_DIR%\extract' -Force" >nul 2>&1
+if errorlevel 1 goto :update_fail
+
+set "ROOT=%TMP_DIR%\extract"
+if not exist "%ROOT%\runelite.jar" (
+	for /d %%D in ("%TMP_DIR%\extract\*") do (
+		if exist "%%~fD\runelite.jar" set "ROOT=%%~fD"
+	)
+)
+
+if not exist "%ROOT%\runelite.jar" goto :update_fail
+if not exist "%ROOT%\start.sh" goto :update_fail
+if not exist "%ROOT%\start.bat" goto :update_fail
+if not exist "%ROOT%\VERSION" goto :update_fail
+
+copy /y "%ROOT%\runelite.jar" "%SCRIPT_DIR%\runelite.jar" >nul || goto :update_fail
+copy /y "%ROOT%\start.sh" "%SCRIPT_DIR%\start.sh" >nul || goto :update_fail
+copy /y "%ROOT%\start.bat" "%SCRIPT_DIR%\start.bat" >nul || goto :update_fail
+copy /y "%ROOT%\VERSION" "%SCRIPT_DIR%\VERSION" >nul || goto :update_fail
+if exist "%ROOT%\jvmargs.example.txt" copy /y "%ROOT%\jvmargs.example.txt" "%SCRIPT_DIR%\jvmargs.example.txt" >nul
+
+rmdir /s /q "%TMP_DIR%" >nul 2>&1
+exit /b 0
+
+:update_fail
+if exist "%TMP_DIR%" rmdir /s /q "%TMP_DIR%" >nul 2>&1
+exit /b 1
