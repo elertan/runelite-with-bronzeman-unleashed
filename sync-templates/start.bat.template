@@ -9,6 +9,7 @@ set "PLUGINHUB_VERSION=__PLUGINHUB_VERSION__"
 set "LOCAL_VERSION=__LOCAL_VERSION__"
 set "JVMARGS_FILE=%SCRIPT_DIR%\jvmargs.txt"
 set "SKIP_UPDATE=0"
+set "RESTART_AFTER_UPDATE=0"
 
 if /I "%~1"=="--skip-update-check" set "SKIP_UPDATE=1"
 if exist "%SCRIPT_DIR%\VERSION" set /p LOCAL_VERSION=<"%SCRIPT_DIR%\VERSION"
@@ -26,6 +27,7 @@ if not exist "%JVMARGS_FILE%" (
 	)
 
 if "%SKIP_UPDATE%"=="0" call :check_update
+if "%RESTART_AFTER_UPDATE%"=="1" exit /b 0
 
 set "JAVA_ARGS=-Drunelite.pluginhub.version=%PLUGINHUB_VERSION%"
 for /f "usebackq delims=" %%A in ("%JVMARGS_FILE%") do (
@@ -73,8 +75,9 @@ if errorlevel 1 (
 )
 
 echo Update installed. Restarting launcher.
+set "RESTART_AFTER_UPDATE=1"
 start "" "%SCRIPT_DIR%\start.bat" --skip-update-check
-exit /b 0
+goto :eof
 
 :install_update
 set "TMP_DIR=%TEMP%\runelite-update-%RANDOM%%RANDOM%"
